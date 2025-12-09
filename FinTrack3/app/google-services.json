@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "753491245334",
+    "project_id": "login-register-firebase-3ff26",
+    "storage_bucket": "login-register-firebase-3ff26.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:753491245334:android:fbb5c3a5c93eb18d23f837",
+        "android_client_info": {
+          "package_name": "bilal.com.fintrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANEH1V5IIej-Fqa2cCLkudfImXkid1ShY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
