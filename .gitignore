@@ -1,0 +1,18 @@
+# Android
+**/build/
+**/app/build/
+**/.gradle/
+**/.idea/
+**/local.properties
+*.iml
+*.apk
+*.dex
+
+# Node.js (pour le backend)
+**/node_modules/
+**/dist/
+**/.env
+
+# Autres
+.DS_Store
+*.log
