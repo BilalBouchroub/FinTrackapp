@@ -14,9 +14,14 @@ import bilal.com.fintrack.ui.navigation.FinTrackNavGraph
 import bilal.com.fintrack.ui.theme.FinTrackTheme
 import bilal.com.fintrack.utils.NotificationService
 
-class MainActivity : ComponentActivity() {
+
+import bilal.com.fintrack.ui.base.BaseActivity
+
+class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize User Session
         
         // Initialize Notification Channels
         NotificationService.createNotificationChannels(this)

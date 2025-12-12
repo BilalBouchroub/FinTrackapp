@@ -7,18 +7,19 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import bilal.com.fintrack.data.local.entities.Transaction
+import bilal.com.fintrack.data.local.entities.TransactionType
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TransactionDao {
-    @Query("SELECT * FROM transactions ORDER BY date DESC")
-    fun getAllTransactions(): Flow<List<Transaction>>
+    @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY date DESC")
+    fun getAllTransactions(userId: String): Flow<List<Transaction>>
 
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getTransactionById(id: Long): Transaction?
 
-    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate ORDER BY date DESC")
-    fun getTransactionsByDateRange(startDate: Long, endDate: Long): Flow<List<Transaction>>
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND date BETWEEN :startDate AND :endDate ORDER BY date DESC")
+    fun getTransactionsByDateRange(userId: String, startDate: Long, endDate: Long): Flow<List<Transaction>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction): Long
@@ -29,12 +30,15 @@ interface TransactionDao {
     @Delete
     suspend fun deleteTransaction(transaction: Transaction)
 
-    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'EXPENSE'")
-    fun getTotalExpenses(): Flow<Double?>
+    @Query("SELECT SUM(amount) FROM transactions WHERE userId = :userId AND type = 'EXPENSE'")
+    fun getTotalExpenses(userId: String): Flow<Double?>
 
-    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'INCOME'")
-    fun getTotalIncome(): Flow<Double?>
+    @Query("SELECT SUM(amount) FROM transactions WHERE userId = :userId AND type = 'INCOME'")
+    fun getTotalIncome(userId: String): Flow<Double?>
     
-    @Query("SELECT * FROM transactions WHERE categoryId = :categoryId")
-    fun getTransactionsByCategory(categoryId: Long): Flow<List<Transaction>>
+    @Query("SELECT * FROM transactions WHERE userId = :userId AND categoryId = :categoryId")
+    fun getTransactionsByCategory(userId: String, categoryId: Long): Flow<List<Transaction>>
+    
+    @Query("SELECT * FROM transactions WHERE serverId = :serverId AND userId = :userId LIMIT 1")
+    suspend fun getTransactionByServerId(serverId: String, userId: String): Transaction?
 }

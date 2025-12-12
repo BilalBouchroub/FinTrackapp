@@ -2,6 +2,7 @@ package bilal.com.fintrack.data.remote.api
 
 import bilal.com.fintrack.data.remote.models.ApiResponse
 import bilal.com.fintrack.data.remote.models.TransactionDto
+import bilal.com.fintrack.data.remote.models.TransactionListResponse
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -16,7 +17,7 @@ interface TransactionApiService {
     @GET("transactions")
     suspend fun getAllTransactions(
         @Header("Authorization") token: String
-    ): Response<ApiResponse<List<TransactionDto>>>
+    ): Response<TransactionListResponse>
     
     /**
      * Récupérer une transaction spécifique

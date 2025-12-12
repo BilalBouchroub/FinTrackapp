@@ -7,18 +7,18 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import bilal.com.fintrack.MainActivity
 import bilal.com.fintrack.R
+import bilal.com.fintrack.ui.base.BaseActivity
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
-class LoginActivity : AppCompatActivity() {
+class LoginActivity : BaseActivity() {
     
     private lateinit var auth: FirebaseAuth
     private lateinit var emailEditText: TextInputEditText
@@ -131,12 +131,10 @@ class LoginActivity : AppCompatActivity() {
                         if (response.isSuccessful && response.body()?.success == true) {
                             // Backend Login Succès
                             val token = response.body()?.token
-                            if (token != null) {
-                                val tokenManager = bilal.com.fintrack.data.remote.TokenManager(this@LoginActivity)
-                                tokenManager.saveToken(token)
-                                response.body()?.user?.let { u ->
-                                    tokenManager.saveUserInfo(u.id, u.email, u.nom)
-                                }
+                            val user = response.body()?.user
+                            if (token != null && user != null) {
+                                saveUserAndNavigate(token, user)
+                                return@launch
                             }
                             navigateToMain()
                         } else if (response.code() == 404) {
@@ -148,14 +146,66 @@ class LoginActivity : AppCompatActivity() {
                         }
                     } catch (e: Exception) {
                         showLoading(false)
-                        // En cas d'erreur réseau backend, on laisse entrer quand même (mode offline possible)
-                        // mais sans token de sync
-                        Toast.makeText(this@LoginActivity, "Mode hors ligne: Impossible de contacter le serveur", Toast.LENGTH_SHORT).show()
-                        navigateToMain()
+                        // Afficher l'erreur exacte pour le débogage
+                        val errorMsg = e.message ?: "Erreur inconnue"
+                        android.util.Log.e("LoginActivity", "Login Error", e)
+                        
+                        if (errorMsg.contains("Failed to connect") || errorMsg.contains("timeout")) {
+                             Toast.makeText(this@LoginActivity, "Erreur connexion: Vérifiez votre internet ou l'adresse IP ($errorMsg)", Toast.LENGTH_LONG).show()
+                        } else if (errorMsg.contains("JSON") || errorMsg.contains("GSON")) {
+                             Toast.makeText(this@LoginActivity, "Erreur format données: $errorMsg", Toast.LENGTH_LONG).show()
+                        } else {
+                             Toast.makeText(this@LoginActivity, "Erreur: $errorMsg", Toast.LENGTH_LONG).show()
+                        }
+                        
+                        // On ne navigue PAS vers main si le login backend échoue explicitement, 
+                        // sauf si on veut forcer le mode hors ligne. 
+                        // Pour l'instant, on laisse l'utilisateur réessayer ou voir l'erreur.
+                        // navigateToMain() // Commenté pour permettre de voir l'erreur
                     }
                 }
             }
     }
+    
+    private fun saveUserAndNavigate(token: String, user: bilal.com.fintrack.data.remote.models.UserDto) {
+        val tokenManager = bilal.com.fintrack.data.remote.TokenManager(this)
+        tokenManager.saveToken(token)
+        // Gestion sécurisée des nulls
+        tokenManager.saveUserInfo(
+            user.id ?: "",
+            user.email ?: "",
+            user.nom ?: "Utilisateur"
+        )
+        
+        // Synchroniser les données depuis le serveur MongoDB
+        lifecycleScope.launch {
+            try {
+                val app = application as bilal.com.fintrack.FinTrackApplication
+                
+                // 1. Synchroniser les transactions
+                val syncTransResult = app.container.syncTransactionRepository.syncWithServer()
+                if (syncTransResult.isSuccess) {
+                    android.util.Log.d("LoginActivity", "Transactions synchronisées avec succès")
+                } else {
+                    android.util.Log.w("LoginActivity", "Échec sync transactions: ${syncTransResult.exceptionOrNull()?.message}")
+                }
+                
+                // 2. Synchroniser les budgets
+                val syncBudgetResult = app.container.budgetRepository.syncWithServer()
+                if (syncBudgetResult.isSuccess) {
+                    android.util.Log.d("LoginActivity", "Budgets synchronisés avec succès")
+                } else {
+                    android.util.Log.w("LoginActivity", "Échec sync budgets: ${syncBudgetResult.exceptionOrNull()?.message}")
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("LoginActivity", "Erreur lors de la synchronisation", e)
+            }
+            showLoading(false)
+            navigateToMain()
+        }
+    }
+
 
     private suspend fun tryRegisterOnBackend(firebaseUser: com.google.firebase.auth.FirebaseUser?) {
         try {
@@ -175,12 +225,10 @@ class LoginActivity : AppCompatActivity() {
             
             if (response.isSuccessful && response.body()?.success == true) {
                 val token = response.body()?.token
-                if (token != null) {
-                    val tokenManager = bilal.com.fintrack.data.remote.TokenManager(this@LoginActivity)
-                    tokenManager.saveToken(token)
-                    response.body()?.user?.let { u ->
-                        tokenManager.saveUserInfo(u.id, u.email, u.nom)
-                    }
+                val user = response.body()?.user
+                if (token != null && user != null) {
+                    saveUserAndNavigate(token, user)
+                    return
                 }
                 navigateToMain()
             } else {

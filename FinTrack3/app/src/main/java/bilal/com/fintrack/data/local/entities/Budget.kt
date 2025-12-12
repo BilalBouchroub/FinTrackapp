@@ -12,6 +12,8 @@ data class Budget(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val categoryId: Long?, // Null for global budget
     val amount: Double,
+    val userId: String = "",
     val period: BudgetPeriod,
-    val startDate: Long
+    val startDate: Long,
+    val serverId: String? = null  // MongoDB ObjectId for sync
 )

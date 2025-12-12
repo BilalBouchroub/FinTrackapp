@@ -51,6 +51,9 @@ fun AddTransactionScreen(
     var showBudgetWarning by remember { mutableStateOf(false) }
     var pendingTransaction by remember { mutableStateOf<Transaction?>(null) }
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val currency = remember(context) { bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() }
+    
     val uiState by viewModel.uiState.collectAsState()
     
     // Initialize with first category when categories are loaded
@@ -64,9 +67,9 @@ fun AddTransactionScreen(
     LaunchedEffect(selectedType) {
         if (uiState.categories.isNotEmpty()) {
             val appropriateCategories = if (selectedType == TransactionType.INCOME) {
-                uiState.categories.filter { it.name in listOf("Investir", "Affaires", "Intérêt", "Revenus") }
+                uiState.categories.filter { it.name in listOf("Investir", "Affaires", "Intérêt", "Revenus", "Salaire", "Freelance") }
             } else {
-                uiState.categories.filter { it.name !in listOf("Investir", "Affaires", "Intérêt", "Revenus") }
+                uiState.categories.filter { it.name !in listOf("Investir", "Affaires", "Intérêt", "Revenus", "Salaire", "Freelance") }
             }
             // Reset to first appropriate category
             selectedCategoryId = appropriateCategories.firstOrNull()?.id
@@ -129,13 +132,15 @@ fun AddTransactionScreen(
                                     if (newTotal > budget.amount) {
                                         // Show warning dialog
                                         showBudgetWarning = true
+                                        val categoryName = uiState.categories.find { it.id == selectedCategoryId }?.name
                                         pendingTransaction = Transaction(
                                             amount = amountVal,
                                             type = selectedType,
                                             categoryId = selectedCategoryId ?: 1L,
                                             paymentMethod = "Cash",
                                             date = System.currentTimeMillis(),
-                                            notes = notes.ifEmpty { null }
+                                            notes = notes.ifEmpty { null },
+                                            categoryName = categoryName
                                         )
                                         return@TextButton
                                     }
@@ -143,6 +148,7 @@ fun AddTransactionScreen(
                             }
                             
                             // Save transaction directly if no budget issue
+                            val categoryName = uiState.categories.find { it.id == selectedCategoryId }?.name
                             viewModel.addTransaction(
                                 Transaction(
                                     amount = amountVal,
@@ -150,7 +156,8 @@ fun AddTransactionScreen(
                                     categoryId = selectedCategoryId ?: 1L,
                                     paymentMethod = "Cash",
                                     date = System.currentTimeMillis(),
-                                    notes = notes.ifEmpty { null }
+                                    notes = notes.ifEmpty { null },
+                                    categoryName = categoryName
                                 )
                             )
                             onNavigateUp()
@@ -220,7 +227,7 @@ fun AddTransactionScreen(
                         focusedContainerColor = Color.Transparent
                     )
                 )
-                Text("MAD", style = MaterialTheme.typography.titleLarge, color = Color.Gray)
+                Text(currency, style = MaterialTheme.typography.titleLarge, color = Color.Gray)
             }
 
 
@@ -264,12 +271,12 @@ fun AddTransactionScreen(
                 val filteredCategories = if (selectedType == TransactionType.INCOME) {
                     // Show only income categories
                     uiState.categories.filter { 
-                        it.name in listOf("Investir", "Affaires", "Intérêt", "Revenus")
+                        it.name in listOf("Investir", "Affaires", "Intérêt", "Revenus", "Salaire", "Freelance")
                     }
                 } else {
                     // Show only expense categories
                     uiState.categories.filter { 
-                        it.name !in listOf("Investir", "Affaires", "Intérêt", "Revenus")
+                        it.name !in listOf("Investir", "Affaires", "Intérêt", "Revenus", "Salaire", "Freelance")
                     }
                 }
                 
@@ -289,12 +296,15 @@ fun AddTransactionScreen(
                         // Map category to icon
                         val categoryIcon = when (category.name.lowercase()) {
                             "nourriture" -> Icons.Default.Restaurant
+                            "transport" -> Icons.Default.DirectionsCar
                             "trafic" -> Icons.Default.DirectionsCar
+                            "logement" -> Icons.Default.Home
                             "locations" -> Icons.Default.Home
                             "médical" -> Icons.Default.MedicalServices
                             "shopping" -> Icons.Default.ShoppingCart
                             "social" -> Icons.Default.People
                             "épicerie" -> Icons.Default.ShoppingBag
+                            "éducation" -> Icons.Default.School
                             "education" -> Icons.Default.School
                             "factures" -> Icons.Default.Receipt
                             "investir" -> Icons.Default.TrendingUp
@@ -303,6 +313,8 @@ fun AddTransactionScreen(
                             "revenus" -> Icons.Default.Payments
                             "investissement" -> Icons.Default.TrendingUp
                             "cadeau" -> Icons.Default.CardGiftcard
+                            "salaire" -> Icons.Default.AccountBalanceWallet
+                            "freelance" -> Icons.Default.Work
                             else -> Icons.Default.Category
                         }
                         
@@ -459,21 +471,21 @@ fun AddTransactionScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Budget:", fontWeight = FontWeight.Medium)
-                                Text("${budget?.amount?.toInt() ?: 0} MAD", fontWeight = FontWeight.Bold)
+                                Text("${budget?.amount?.toInt() ?: 0} $currency", fontWeight = FontWeight.Bold)
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Déjà dépensé:", fontWeight = FontWeight.Medium)
-                                Text("${currentSpent.toInt()} MAD", color = Color(0xFFFF9800))
+                                Text("${currentSpent.toInt()} $currency", color = Color(0xFFFF9800))
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Cette transaction:", fontWeight = FontWeight.Medium)
-                                Text("+${pendingTransaction?.amount?.toInt() ?: 0} MAD", color = Color.Red)
+                                Text("+${pendingTransaction?.amount?.toInt() ?: 0} $currency", color = Color.Red)
                             }
                             Divider(color = Color(0xFFFFCC80))
                             Row(
@@ -482,7 +494,7 @@ fun AddTransactionScreen(
                             ) {
                                 Text("Nouveau total:", fontWeight = FontWeight.Bold)
                                 Text(
-                                    "${newTotal.toInt()} MAD",
+                                    "${newTotal.toInt()} $currency",
                                     color = Color.Red,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -493,7 +505,7 @@ fun AddTransactionScreen(
                             ) {
                                 Text("Dépassement:", fontWeight = FontWeight.Bold)
                                 Text(
-                                    "+${exceededAmount.toInt()} MAD",
+                                    "+${exceededAmount.toInt()} $currency",
                                     color = Color.Red,
                                     fontWeight = FontWeight.Bold
                                 )

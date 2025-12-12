@@ -23,9 +23,13 @@ class SyncTransactionRepository(
     private val api = RetrofitClient.transactionApi
     
     /**
-     * Flow de toutes les transactions locales
+     * Obtenir toutes les transactions locales pour l'utilisateur connecté
      */
-    val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
+    val allTransactions: Flow<List<Transaction>>
+        get() {
+            val userId = tokenManager.getUserId() ?: ""
+            return transactionDao.getAllTransactions(userId)
+        }
     
     /**
      * Ajouter une transaction localement et la synchroniser avec le serveur
@@ -33,8 +37,10 @@ class SyncTransactionRepository(
     suspend fun insertTransaction(transaction: Transaction): Result<Transaction> {
         return try {
             // 1. Insérer localement d'abord
-            val localId = transactionDao.insertTransaction(transaction)
-            val insertedTransaction = transaction.copy(id = localId)
+            val userId = tokenManager.getUserId() ?: ""
+            val transactionWithUser = transaction.copy(userId = userId)
+            val localId = transactionDao.insertTransaction(transactionWithUser)
+            val insertedTransaction = transactionWithUser.copy(id = localId)
             
             // 2. Essayer de synchroniser avec le serveur
             val token = tokenManager.getBearerToken()
@@ -73,14 +79,23 @@ class SyncTransactionRepository(
             
             // Synchroniser avec le serveur
             val token = tokenManager.getBearerToken()
-            if (token != null) {
+            if (token != null && transaction.serverId != null) {
                 try {
                     val userId = tokenManager.getUserId() ?: ""
                     val transactionDto = transaction.toDto(userId, emptyMap())
-                    api.updateTransaction(token, transaction.id.toString(), transactionDto)
+                    // Utiliser serverId (MongoDB ObjectId) au lieu de l'ID local
+                    val response = api.updateTransaction(token, transaction.serverId, transactionDto)
+                    if (response.isSuccessful) {
+                        android.util.Log.d("SyncRepo", "Transaction mise à jour sur serveur: ${transaction.serverId}")
+                    } else {
+                        android.util.Log.w("SyncRepo", "Échec mise à jour serveur: ${response.code()}")
+                    }
                 } catch (e: Exception) {
+                    android.util.Log.e("SyncRepo", "Erreur mise à jour serveur", e)
                     // Ignorer les erreurs de sync
                 }
+            } else {
+                android.util.Log.d("SyncRepo", "Transaction locale uniquement (pas de serverId), mise à jour locale seulement")
             }
             
             Result.success(Unit)
@@ -98,12 +113,21 @@ class SyncTransactionRepository(
             
             // Synchroniser avec le serveur
             val token = tokenManager.getBearerToken()
-            if (token != null) {
+            if (token != null && transaction.serverId != null) {
                 try {
-                    api.deleteTransaction(token, transaction.id.toString())
+                    // Utiliser serverId (MongoDB ObjectId) au lieu de l'ID local
+                    val response = api.deleteTransaction(token, transaction.serverId)
+                    if (response.isSuccessful) {
+                        android.util.Log.d("SyncRepo", "Transaction supprimée du serveur: ${transaction.serverId}")
+                    } else {
+                        android.util.Log.w("SyncRepo", "Échec suppression serveur: ${response.code()}")
+                    }
                 } catch (e: Exception) {
-                    // Ignorer les erreurs de sync
+                    android.util.Log.e("SyncRepo", "Erreur suppression serveur", e)
+                    // Ignorer les erreurs de sync - la transaction est déjà supprimée localement
                 }
+            } else {
+                android.util.Log.d("SyncRepo", "Transaction locale uniquement (pas de serverId), suppression locale seulement")
             }
             
             Result.success(Unit)
@@ -119,34 +143,74 @@ class SyncTransactionRepository(
     suspend fun syncWithServer(): Result<Unit> {
         return try {
             val token = tokenManager.getBearerToken()
+            val userId = tokenManager.getUserId() ?: ""
+            
+            android.util.Log.d("SyncRepo", "=== DÉBUT SYNCHRONISATION ===")
+            android.util.Log.d("SyncRepo", "Token présent: ${token != null}")
+            android.util.Log.d("SyncRepo", "UserId: $userId")
+            
             if (token == null) {
+                android.util.Log.e("SyncRepo", "ERREUR: Pas de token!")
                 return Result.failure(Exception("Non authentifié"))
             }
             
             // 1. Récupérer les transactions du serveur
+            android.util.Log.d("SyncRepo", "Appel API getAllTransactions...")
             val response = api.getAllTransactions(token)
             
+            android.util.Log.d("SyncRepo", "Réponse HTTP: ${response.code()}")
+            android.util.Log.d("SyncRepo", "Success: ${response.body()?.success}")
+            android.util.Log.d("SyncRepo", "Nombre transactions: ${response.body()?.transactions?.size ?: 0}")
+            
             if (response.isSuccessful && response.body()?.success == true) {
-                val serverTransactions = response.body()?.data ?: emptyList()
+                val serverTransactions = response.body()?.transactions ?: emptyList()
                 
-                // 2. Convertir en entités locales
-                val localTransactions = serverTransactions.map { it.toEntity(emptyMap()) }
+                android.util.Log.d("SyncRepo", "Transactions reçues du serveur: ${serverTransactions.size}")
+                serverTransactions.forEachIndexed { index, tx ->
+                    android.util.Log.d("SyncRepo", "  [$index] amount=${tx.amount}, type=${tx.type}, id=${tx.id}")
+                }
                 
-                // 3. Insérer/Mettre à jour dans la base locale
+                // 2. Convertir en entités locales avec le userId
+                val localTransactions = serverTransactions.map { it.toEntity(userId, emptyMap()) }
+                
+                // 3. Insérer/Mettre à jour dans la base locale avec déduplication par serverId
+                var insertCount = 0
+                var updateCount = 0
+                var skipCount = 0
+                
                 localTransactions.forEach { transaction ->
-                    try {
-                        transactionDao.insertTransaction(transaction)
-                    } catch (e: Exception) {
-                        // Transaction existe déjà, la mettre à jour
-                        transactionDao.updateTransaction(transaction)
+                    val serverId = transaction.serverId
+                    if (serverId != null) {
+                        // Vérifier si la transaction existe déjà via serverId
+                        val existing = transactionDao.getTransactionByServerId(serverId, userId)
+                        if (existing != null) {
+                            // La transaction existe déjà, mettre à jour avec l'ID local existant
+                            transactionDao.updateTransaction(transaction.copy(id = existing.id))
+                            updateCount++
+                        } else {
+                            // Nouvelle transaction du serveur, insérer
+                            transactionDao.insertTransaction(transaction)
+                            insertCount++
+                        }
+                    } else {
+                        // Pas de serverId, skip pour éviter les doublons
+                        skipCount++
+                        android.util.Log.w("SyncRepo", "Transaction sans serverId ignorée")
                     }
                 }
                 
+                android.util.Log.d("SyncRepo", "Insérées: $insertCount, Mises à jour: $updateCount, Ignorées: $skipCount")
+                android.util.Log.d("SyncRepo", "=== FIN SYNCHRONISATION (SUCCÈS) ===")
+                
                 Result.success(Unit)
             } else {
-                Result.failure(Exception(response.body()?.message ?: "Erreur de synchronisation"))
+                val errorMsg = response.body()?.message ?: "Erreur HTTP ${response.code()}"
+                android.util.Log.e("SyncRepo", "Erreur API: $errorMsg")
+                android.util.Log.e("SyncRepo", "Body brut: ${response.errorBody()?.string()}")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            android.util.Log.e("SyncRepo", "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }

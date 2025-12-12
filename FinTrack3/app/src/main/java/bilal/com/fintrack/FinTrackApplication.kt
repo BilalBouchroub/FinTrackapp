@@ -15,11 +15,11 @@ class AppContainer(private val context: Context) {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     val database by lazy {
-        FinTrackDatabase.getDatabase(context, applicationScope)
+        FinTrackDatabase.getDatabase(context)
     }
 
     val transactionRepository by lazy {
-        TransactionRepository(database.transactionDao())
+        TransactionRepository(database.transactionDao(), context)
     }
 
     val categoryRepository by lazy {

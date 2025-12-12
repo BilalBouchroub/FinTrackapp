@@ -272,8 +272,18 @@ fun StatisticsScreen(
                                 color = GradientStart,
                                 fontWeight = FontWeight.Bold
                             )
+                            val totalBalance = uiState.totalBalance
+                            val formattedBalance = when {
+                                totalBalance >= 1_000_000 -> String.format("%.2fM", totalBalance / 1_000_000)
+                                totalBalance >= 100_000 -> String.format("%.0fk", totalBalance / 1_000)
+                                else -> totalBalance.toInt().toString()
+                            }
                             Text(
-                                "${uiState.totalBalance.toInt()} MAD",
+                                "$formattedBalance ${
+                                    remember(context) { 
+                                        bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() 
+                                    }
+                                }",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black
@@ -307,13 +317,13 @@ fun StatisticsScreen(
                             BarChart(
                                 data = uiState.categoryStats.filter { 
                                     it.type == selectedType 
-                                }.take(4)
+                                }
                             )
                         } else {
                             DonutChart(
                                 data = uiState.categoryStats.filter { 
                                     it.type == selectedType 
-                                }.take(3)
+                                }
                             )
                         }
                     }
@@ -406,6 +416,11 @@ fun BarChart(data: List<CategoryStat>) {
                     position = XAxis.XAxisPosition.BOTTOM
                     setDrawGridLines(false)
                     textColor = AndroidColor.GRAY
+                    granularity = 1f // Forcer une seule étiquette par barre
+                    isGranularityEnabled = true
+                    
+                    // Rotation des labels si plus de 4 catégories
+                    labelRotationAngle = if (data.size > 4) -45f else 0f
                 }
                 
                 axisLeft.apply {
@@ -413,6 +428,18 @@ fun BarChart(data: List<CategoryStat>) {
                     gridColor = AndroidColor.LTGRAY
                     textColor = AndroidColor.GRAY
                     axisMinimum = 0f
+                    // Formatter pour afficher en notation scientifique si > 10000
+                    valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            return when {
+                                value >= 1_000_000 -> String.format("%.1f×10⁶", value / 1_000_000)
+                                value >= 100_000 -> String.format("%.1f×10⁵", value / 100_000)
+                                value >= 10_000 -> String.format("%.1f×10⁴", value / 10_000)
+                                value >= 1_000 -> String.format("%.1fk", value / 1_000)
+                                else -> value.toInt().toString()
+                            }
+                        }
+                    }
                 }
                 
                 axisRight.isEnabled = false
@@ -425,7 +452,21 @@ fun BarChart(data: List<CategoryStat>) {
             }
             
             val dataSet = BarDataSet(entries, "Catégories").apply {
-                setDrawValues(false)
+                setDrawValues(true)
+                valueTextSize = 10f
+                valueTextColor = AndroidColor.DKGRAY
+                // Formatter pour les valeurs au-dessus des barres
+                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return when {
+                            value >= 1_000_000 -> String.format("%.1fM", value / 1_000_000)
+                            value >= 100_000 -> String.format("%.0fk", value / 1_000)
+                            value >= 10_000 -> String.format("%.1fk", value / 1_000)
+                            value >= 1_000 -> String.format("%.1fk", value / 1_000)
+                            else -> value.toInt().toString()
+                        }
+                    }
+                }
                 colors = data.map { stat ->
                     try {
                         AndroidColor.parseColor(stat.categoryColor)
@@ -469,9 +510,18 @@ fun DonutChart(data: List<CategoryStat>) {
                 transparentCircleRadius = 61f
                 setHoleColor(AndroidColor.TRANSPARENT)
                 
-                // Texte au centre
+                // Texte au centre avec formatage
                 setDrawCenterText(true)
-                centerText = "Total\n${data.sumOf { it.amount }.toInt()} MAD"
+                val currency = bilal.com.fintrack.data.remote.TokenManager(context).getCurrency()
+                val total = data.sumOf { it.amount }
+                val formattedTotal = when {
+                    total >= 1_000_000 -> String.format("%.1fM", total / 1_000_000)
+                    total >= 100_000 -> String.format("%.0fk", total / 1_000)
+                    total >= 10_000 -> String.format("%.1fk", total / 1_000)
+                    total >= 1_000 -> String.format("%.1fk", total / 1_000)
+                    else -> total.toInt().toString()
+                }
+                centerText = "Total\n$formattedTotal $currency"
                 setCenterTextColor(AndroidColor.BLACK)
                 setCenterTextSize(16f)
                 
@@ -496,6 +546,18 @@ fun DonutChart(data: List<CategoryStat>) {
                 setDrawValues(true)
                 valueTextSize = 12f
                 valueTextColor = AndroidColor.WHITE
+                // Formatter pour les valeurs dans les segments
+                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return when {
+                            value >= 1_000_000 -> String.format("%.1fM", value / 1_000_000)
+                            value >= 100_000 -> String.format("%.0fk", value / 1_000)
+                            value >= 10_000 -> String.format("%.1fk", value / 1_000)
+                            value >= 1_000 -> String.format("%.1fk", value / 1_000)
+                            else -> value.toInt().toString()
+                        }
+                    }
+                }
                 
                 colors = data.map { stat ->
                     try {
@@ -560,8 +622,17 @@ fun CategoryStatItem(stat: CategoryStat) {
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                    val formattedAmount = when {
+                        stat.amount >= 1_000_000 -> String.format("%.1fM", stat.amount / 1_000_000)
+                        stat.amount >= 100_000 -> String.format("%.0fk", stat.amount / 1_000)
+                        stat.amount >= 10_000 -> String.format("%.1fk", stat.amount / 1_000)
+                        stat.amount >= 1_000 -> String.format("%.1fk", stat.amount / 1_000)
+                        else -> stat.amount.toInt().toString()
+                    }
                     Text(
-                        "(${stat.amount.toInt()} MAD)",
+                        "($formattedAmount ${
+                            bilal.com.fintrack.data.remote.TokenManager(androidx.compose.ui.platform.LocalContext.current).getCurrency()
+                        })",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )

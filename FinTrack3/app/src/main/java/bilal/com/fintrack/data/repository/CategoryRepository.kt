@@ -15,10 +15,16 @@ class CategoryRepository(
     private val tokenManager = TokenManager(context)
     private val api = RetrofitClient.categoryApi
 
-    val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
+    val allCategories: Flow<List<Category>>
+        get() {
+            val userId = tokenManager.getUserId() ?: ""
+            return categoryDao.getAllCategories(userId)
+        }
 
     suspend fun insertCategory(category: Category) {
-        val id = categoryDao.insertCategory(category)
+        val userId = tokenManager.getUserId() ?: ""
+        val categoryWithUser = category.copy(userId = userId)
+        val id = categoryDao.insertCategory(categoryWithUser)
         
         // Sync avec le serveur
         try {

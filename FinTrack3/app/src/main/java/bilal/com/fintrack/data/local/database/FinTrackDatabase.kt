@@ -4,25 +4,23 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import bilal.com.fintrack.data.local.dao.BudgetDao
 import bilal.com.fintrack.data.local.dao.CategoryDao
 import bilal.com.fintrack.data.local.dao.TransactionDao
-import bilal.com.fintrack.data.local.dao.UserDao
 import bilal.com.fintrack.data.local.entities.Budget
 import bilal.com.fintrack.data.local.entities.Category
 import bilal.com.fintrack.data.local.entities.Transaction
-import bilal.com.fintrack.data.local.entities.User
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-@Database(
-    entities = [Transaction::class, Category::class, Budget::class, User::class],
-    version = 5,
-    exportSchema = false
-)
+import androidx.room.TypeConverters
+
+import bilal.com.fintrack.data.local.dao.UserDao
+import bilal.com.fintrack.data.local.entities.User
+
+@Database(entities = [Transaction::class, Category::class, Budget::class, User::class], version = 8, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class FinTrackDatabase : RoomDatabase() {
 
@@ -35,7 +33,7 @@ abstract class FinTrackDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: FinTrackDatabase? = null
 
-        fun getDatabase(context: Context, scope: CoroutineScope): FinTrackDatabase {
+        fun getDatabase(context: Context): FinTrackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
@@ -43,52 +41,65 @@ abstract class FinTrackDatabase : RoomDatabase() {
                     "fintrack_database"
                 )
                 .fallbackToDestructiveMigration()
-                .addCallback(FinTrackDatabaseCallback(scope))
+                .addCallback(FinTrackDatabaseCallback(context))
                 .build()
                 INSTANCE = instance
                 instance
             }
         }
-    }
 
-    private class FinTrackDatabaseCallback(
-        private val scope: CoroutineScope
-    ) : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
-            INSTANCE?.let { database ->
-                scope.launch(Dispatchers.IO) {
-                    populateDatabase(database.categoryDao())
+        private class FinTrackDatabaseCallback(
+            private val context: Context
+        ) : Callback() {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                super.onCreate(db)
+                INSTANCE?.let { database ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        populateDatabase(database.categoryDao())
+                    }
                 }
             }
-        }
+            
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                // Ne pas appeler populateDatabase ici pour éviter les doublons
+            }
 
-        suspend fun populateDatabase(categoryDao: CategoryDao) {
-            // Pre-populate categories
-            val categories = listOf(
-                // Expense categories (Dépenses)
-                Category(name = "Nourriture", icon = "restaurant", color = "#FFC107", keywords = listOf("restaurant", "mcdo", "burger", "pizza", "supermarché", "courses")),
-                Category(name = "Social", icon = "people", color = "#FFAB91", keywords = listOf("social", "amis", "sortie")),
-                Category(name = "Trafic", icon = "directions_car", color = "#64B5F6", keywords = listOf("essence", "uber", "taxi", "train", "bus", "péage", "transport")),
-                Category(name = "Shopping", icon = "shopping_cart", color = "#FF80AB", keywords = listOf("shopping", "vêtements", "magasin")),
-                Category(name = "Épicerie", icon = "shopping_bag", color = "#A5D6A7", keywords = listOf("épicerie", "courses")),
-                Category(name = "Education", icon = "school", color = "#B39DDB", keywords = listOf("école", "université", "formation", "cours")),
-                Category(name = "Factures", icon = "receipt", color = "#80DEEA", keywords = listOf("facture", "abonnement")),
-                Category(name = "Locations", icon = "home", color = "#FFD54F", keywords = listOf("loyer", "électricité", "eau", "internet", "assurance", "logement")),
-                Category(name = "Médical", icon = "medical_services", color = "#EF9A9A", keywords = listOf("médecin", "pharmacie", "dentiste", "hôpital", "santé")),
-                Category(name = "Investissement", icon = "trending_up", color = "#CE93D8", keywords = listOf("investissement", "bourse", "crypto")),
-                Category(name = "Cadeau", icon = "card_giftcard", color = "#FFCCBC", keywords = listOf("cadeau", "anniversaire")),
+            suspend fun populateDatabase(categoryDao: CategoryDao) {
+                // Vérifier si les catégories SYSTEM existent déjà
+                val systemCount = categoryDao.getCountByUserId(userId = "SYSTEM")
                 
-                // Income categories (Revenu)
-                Category(name = "Investir", icon = "payments", color = "#7ED957", keywords = listOf("investissement", "dividende")),
-                Category(name = "Affaires", icon = "business", color = "#69B4FF", keywords = listOf("business", "entreprise", "freelance")),
-                Category(name = "Intérêt", icon = "percent", color = "#CE93D8", keywords = listOf("intérêt", "intérêts", "banque")),
-                Category(name = "Revenus", icon = "payments", color = "#FFAB91", keywords = listOf("salaire", "virement", "prime", "paie")),
+                android.util.Log.d("FinTrackDB", "Catégories SYSTEM existantes: $systemCount")
                 
-                // Other
-                Category(name = "Autre", icon = "category", color = "#90CAF9", keywords = listOf())
-            )
-            categoryDao.insertAll(categories)
+                // Ne créer les catégories que si aucune catégorie SYSTEM n'existe
+                if (systemCount == 0) {
+                    android.util.Log.d("FinTrackDB", "Création des catégories par défaut...")
+                    
+                    val defaultCategories = listOf(
+                        // Catégories Dépenses
+                        Category(name = "Nourriture", icon = "restaurant", color = "#FF5722", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Transport", icon = "traffic", color = "#FFC107", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Logement", icon = "home", color = "#03A9F4", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Médical", icon = "medical_services", color = "#E91E63", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Shopping", icon = "shopping_cart", color = "#9C27B0", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Social", icon = "people", color = "#3F51B5", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Épicerie", icon = "shopping_basket", color = "#4CAF50", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Éducation", icon = "school", color = "#009688", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Factures", icon = "receipt", color = "#795548", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Investissement", icon = "trending_up", color = "#607D8B", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Affaires", icon = "business", color = "#00BCD4", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Cadeau", icon = "card_giftcard", color = "#F44336", isCustom = false, userId = "SYSTEM"),
+
+                        // Catégories Revenus
+                        Category(name = "Revenus", icon = "payments", color = "#8BC34A", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Salaire", icon = "account_balance_wallet", color = "#4CAF50", isCustom = false, userId = "SYSTEM"),
+                        Category(name = "Freelance", icon = "work", color = "#2196F3", isCustom = false, userId = "SYSTEM")
+                    )
+                    
+                    defaultCategories.forEach { categoryDao.insertCategory(it) }
+                    android.util.Log.d("FinTrackDB", "Catégories créées: ${defaultCategories.size}")
+                }
+            }
         }
     }
 }

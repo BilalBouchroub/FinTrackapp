@@ -14,14 +14,6 @@ class TokenManager(context: Context) {
         Context.MODE_PRIVATE
     )
     
-    companion object {
-        private const val PREFS_NAME = "fintrack_auth"
-        private const val KEY_TOKEN = "jwt_token"
-        private const val KEY_USER_ID = "user_id"
-        private const val KEY_USER_EMAIL = "user_email"
-        private const val KEY_USER_NAME = "user_name"
-    }
-    
     /**
      * Sauvegarder le token JWT
      */
@@ -89,5 +81,43 @@ class TokenManager(context: Context) {
      */
     fun clearAll() {
         prefs.edit().clear().apply()
+    }
+
+    /**
+     * Sauvegarder la langue préférée
+     */
+    fun saveLanguage(language: String) {
+        prefs.edit().putString(KEY_LANGUAGE, language).apply()
+    }
+
+    /**
+     * Récupérer la langue préférée (défaut: "fr")
+     */
+    fun getLanguage(): String {
+        return prefs.getString(KEY_LANGUAGE, "fr") ?: "fr"
+    }
+
+    /**
+     * Sauvegarder la devise préférée
+     */
+    fun saveCurrency(currency: String) {
+        prefs.edit().putString(KEY_CURRENCY, currency).apply()
+    }
+
+    /**
+     * Récupérer la devise préférée (défaut: "MAD")
+     */
+    fun getCurrency(): String {
+        return prefs.getString(KEY_CURRENCY, "MAD") ?: "MAD"
+    }
+    
+    companion object {
+        private const val PREFS_NAME = "fintrack_auth"
+        private const val KEY_TOKEN = "jwt_token"
+        private const val KEY_USER_ID = "user_id"
+        private const val KEY_USER_EMAIL = "user_email"
+        private const val KEY_USER_NAME = "user_name"
+        private const val KEY_LANGUAGE = "app_language"
+        private const val KEY_CURRENCY = "app_currency"
     }
 }

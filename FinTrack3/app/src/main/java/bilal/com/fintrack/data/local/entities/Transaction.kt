@@ -16,5 +16,8 @@ data class Transaction(
     val paymentMethod: String,
     val date: Long,
     val notes: String?,
-    val createdAt: Long = System.currentTimeMillis()
+    val userId: String = "",
+    val createdAt: Long = System.currentTimeMillis(),
+    val serverId: String? = null,  // MongoDB ObjectId for sync deduplication
+    val categoryName: String? = null  // Store category name for reliable display
 )

@@ -7,19 +7,19 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import bilal.com.fintrack.MainActivity
 import bilal.com.fintrack.R
+import bilal.com.fintrack.ui.base.BaseActivity
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
-class RegisterActivity : AppCompatActivity() {
+class RegisterActivity : BaseActivity() {
     
     private lateinit var auth: FirebaseAuth
     private lateinit var nameEditText: TextInputEditText
@@ -180,7 +180,11 @@ class RegisterActivity : AppCompatActivity() {
                                         val tokenManager = bilal.com.fintrack.data.remote.TokenManager(this@RegisterActivity)
                                         tokenManager.saveToken(token)
                                         response.body()?.user?.let { u ->
-                                            tokenManager.saveUserInfo(u.id, u.email, u.nom)
+                                            tokenManager.saveUserInfo(
+                                                u.id ?: "",
+                                                u.email ?: "",
+                                                u.nom ?: "Utilisateur"
+                                            )
                                         }
                                     }
                                     showLoading(false)

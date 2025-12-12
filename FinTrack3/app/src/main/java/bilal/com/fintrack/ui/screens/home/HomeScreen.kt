@@ -44,6 +44,9 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val currency = remember(context) { bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() }
+    
     // Date picker state
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = uiState.selectedDate ?: System.currentTimeMillis()
@@ -161,7 +164,7 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            if (balanceVisible) "${uiState.totalBalance.toInt()} MAD" else "******",
+                            if (balanceVisible) "${uiState.totalBalance.toInt()} $currency" else "******",
                             style = MaterialTheme.typography.displayMedium,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
@@ -201,7 +204,7 @@ fun HomeScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                if (selectedTab == 0) "${uiState.totalExpenses.toInt()} MAD" else "${uiState.totalIncome.toInt()} MAD",
+                                if (selectedTab == 0) "${uiState.totalExpenses.toInt()} $currency" else "${uiState.totalIncome.toInt()} $currency",
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = if (selectedTab == 0) Color(0xFFFF3D57) else Color(0xFF00C853),
                                 fontWeight = FontWeight.Bold
@@ -282,7 +285,7 @@ fun HomeScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            if (selectedTab == 0) "${displayExpenses.toInt()} MAD" else "${displayIncome.toInt()} MAD",
+                            if (selectedTab == 0) "${displayExpenses.toInt()} $currency" else "${displayIncome.toInt()} $currency",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -291,6 +294,8 @@ fun HomeScreen(
                 
                 items(displayTransactions) { transaction ->
                     val category = uiState.categories.find { it.id == transaction.categoryId }
+                    // Use transaction.categoryName as fallback if category not found by ID
+                    val displayCategoryName = category?.name ?: transaction.categoryName ?: "Transaction"
                     val categoryColor = try {
                         Color(android.graphics.Color.parseColor(category?.color ?: "#7D3FFF"))
                     } catch (e: Exception) {
@@ -298,13 +303,14 @@ fun HomeScreen(
                     }
                     
                     TransactionItem(
-                        title = category?.name ?: "Transaction",
+                        title = displayCategoryName,
                         description = transaction.notes ?: "Aucune description",
                         amount = transaction.amount,
                         time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(transaction.date)),
                         isExpense = transaction.type == TransactionType.EXPENSE,
                         iconColor = categoryColor,
-                        categoryName = category?.name ?: "",
+                        categoryName = displayCategoryName,
+                        currency = currency,
                         onClick = { onTransactionClick(transaction.id) }
                     )
                 }
@@ -341,12 +347,15 @@ fun TransactionItem(
     isExpense: Boolean,
     iconColor: Color,
     categoryName: String = "",
+    currency: String,
     onClick: () -> Unit = {}
 ) {
     // Map category names to icons
     val categoryIcon = when (categoryName.lowercase()) {
         "nourriture" -> Icons.Default.Restaurant
+        "transport" -> Icons.Default.DirectionsCar
         "trafic" -> Icons.Default.DirectionsCar
+        "logement" -> Icons.Default.Home
         "locations" -> Icons.Default.Home
         "médical" -> Icons.Default.MedicalServices
         "revenus" -> Icons.Default.Payments
@@ -356,10 +365,14 @@ fun TransactionItem(
         "social" -> Icons.Default.People
         "shopping" -> Icons.Default.ShoppingCart
         "épicerie" -> Icons.Default.ShoppingBag
+        "éducation" -> Icons.Default.School
         "education" -> Icons.Default.School
         "factures" -> Icons.Default.Receipt
         "investissement" -> Icons.Default.TrendingUp
         "cadeau" -> Icons.Default.CardGiftcard
+        "transaction" -> Icons.Default.SwapHoriz
+        "salaire" -> Icons.Default.AccountBalanceWallet
+        "freelance" -> Icons.Default.Work
         else -> Icons.Default.Category
     }
     
@@ -423,7 +436,7 @@ fun TransactionItem(
             
             // Amount
             Text(
-                "${if (isExpense) "-" else "+"}${amount.toInt()} MAD",
+                "${if (isExpense) "-" else "+"}${amount.toInt()} $currency",
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isExpense) Color(0xFFFF3D57) else Color(0xFF00C853),
                 fontWeight = FontWeight.Bold

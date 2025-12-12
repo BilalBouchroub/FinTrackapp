@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">FinTrack</string>
+    <string name="profile_title">Profile</string>
+    <string name="dialog_language_title">Choose Language</string>
+    <string name="dialog_currency_title">Choose Currency</string>
+    <string name="cancel">Cancel</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_currency">Currency</string>
+    <string name="settings_categories">Manage Categories</string>
+    <string name="settings_rate">Rate App</string>
+    <string name="settings_privacy">Privacy Policy</string>
+    <string name="settings_share">Share</string>
+    <string name="settings_logout">Logout</string>
+    <string name="default_user">User</string>
+    <string name="default_email">email@example.com</string>
+</resources>

@@ -2,6 +2,7 @@ package bilal.com.fintrack.data.remote
 
 import bilal.com.fintrack.data.remote.models.ApiResponse
 import bilal.com.fintrack.data.remote.models.BudgetDto
+import bilal.com.fintrack.data.remote.models.BudgetListResponse
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -9,7 +10,7 @@ interface BudgetApiService {
     @GET("budgets")
     suspend fun getAllBudgets(
         @Header("Authorization") token: String
-    ): Response<ApiResponse<List<BudgetDto>>>
+    ): Response<BudgetListResponse>
     
     @POST("budgets")
     suspend fun createBudget(

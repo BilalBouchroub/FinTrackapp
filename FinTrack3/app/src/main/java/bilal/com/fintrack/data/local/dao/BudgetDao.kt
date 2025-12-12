@@ -11,14 +11,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BudgetDao {
-    @Query("SELECT * FROM budgets")
-    fun getAllBudgets(): Flow<List<Budget>>
+    @Query("SELECT * FROM budgets WHERE userId = :userId")
+    fun getAllBudgets(userId: String): Flow<List<Budget>>
 
-    @Query("SELECT * FROM budgets WHERE categoryId = :categoryId")
-    suspend fun getBudgetByCategory(categoryId: Long): Budget?
-
-    @Query("SELECT * FROM budgets WHERE categoryId IS NULL")
-    suspend fun getGlobalBudget(): Budget?
+    @Query("SELECT * FROM budgets WHERE userId = :userId AND categoryId = :categoryId")
+    suspend fun getBudgetByCategory(userId: String, categoryId: Long): Budget?
+    
+    @Query("SELECT * FROM budgets WHERE userId = :userId AND categoryId IS NULL")
+    suspend fun getGlobalBudget(userId: String): Budget?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBudget(budget: Budget)

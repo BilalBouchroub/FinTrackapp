@@ -44,12 +44,13 @@ fun Category.toDto(): CategoryDto {
 /**
  * Extension: CategoryDto -> Category
  */
-fun CategoryDto.toEntity(): Category {
+fun CategoryDto.toEntity(userId: String): Category {
     return Category(
         name = name,
         // type ignored
         icon = icon,
         color = color ?: "#000000",
-        isCustom = !isDefault
+        isCustom = !isDefault,
+        userId = userId
     )
 }

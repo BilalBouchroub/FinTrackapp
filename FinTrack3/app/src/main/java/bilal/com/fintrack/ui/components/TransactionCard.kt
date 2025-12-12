@@ -125,8 +125,13 @@ fun TransactionCard(
                         )
                     }
 
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val currency = androidx.compose.runtime.remember(context) { 
+                        bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() 
+                    }
+
                     Text(
-                        text = "${if (transaction.type == TransactionType.EXPENSE) "-" else "+"}${transaction.amount} MAD",
+                        text = "${if (transaction.type == TransactionType.EXPENSE) "-" else "+"}${transaction.amount} $currency",
                         style = MaterialTheme.typography.titleMedium,
                         color = if (transaction.type == TransactionType.EXPENSE) MaterialTheme.colorScheme.error else Color(0xFF4CAF50),
                         fontWeight = FontWeight.Bold

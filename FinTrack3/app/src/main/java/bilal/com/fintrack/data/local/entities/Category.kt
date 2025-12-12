@@ -10,5 +10,6 @@ data class Category(
     val icon: String, // Store icon name or resource ID as string
     val color: String, // Hex color code
     val isCustom: Boolean = false,
-    val keywords: List<String> = emptyList()
+    val keywords: List<String> = emptyList(),
+    val userId: String = ""
 )

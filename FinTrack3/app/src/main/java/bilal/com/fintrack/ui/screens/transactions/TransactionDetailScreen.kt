@@ -50,6 +50,9 @@ fun TransactionDetailScreen(
         return
     }
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val currency = remember(context) { bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() }
+    
     val dateFormat = SimpleDateFormat("EEE., dd MMMM", Locale.FRENCH)
     val formattedDate = dateFormat.format(Date(transaction.date))
     
@@ -114,9 +117,9 @@ fun TransactionDetailScreen(
             // Amount
             Text(
                 when (transaction.type) {
-                    TransactionType.EXPENSE -> "-${transaction.amount.toInt()} MAD"
-                    TransactionType.INCOME -> "+${transaction.amount.toInt()} MAD"
-                    TransactionType.DEBT -> "${transaction.amount.toInt()} MAD"
+                    TransactionType.EXPENSE -> "-${transaction.amount.toInt()} $currency"
+                    TransactionType.INCOME -> "+${transaction.amount.toInt()} $currency"
+                    TransactionType.DEBT -> "${transaction.amount.toInt()} $currency"
                 },
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,

@@ -48,23 +48,23 @@ data class RegisterRequest(
  * Modèle DTO pour User (Data Transfer Object)
  */
 data class UserDto(
-    @SerializedName("_id")
-    val id: String,
+    @SerializedName("id")
+    val id: String?,
     
     @SerializedName("firebaseUid")
-    val firebaseUid: String,
+    val firebaseUid: String?,
     
     @SerializedName("nom")
-    val nom: String,
+    val nom: String?,
     
     @SerializedName("email")
-    val email: String,
+    val email: String?,
     
     @SerializedName("devise")
-    val devise: String,
+    val devise: String?,
     
     @SerializedName("dateInscription")
-    val dateInscription: String,
+    val dateInscription: String?,
     
     @SerializedName("createdAt")
     val createdAt: String?,

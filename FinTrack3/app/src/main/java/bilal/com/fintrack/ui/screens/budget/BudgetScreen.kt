@@ -37,6 +37,9 @@ fun BudgetScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedBudget by remember { mutableStateOf<Budget?>(null) }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val currency = remember(context) { bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() }
+
     Scaffold(
         topBar = {
             Box(
@@ -94,7 +97,7 @@ fun BudgetScreen(
                                 color = Color.White.copy(alpha = 0.8f)
                             )
                             Text(
-                                "${uiState.budgets.sumOf { it.amount }} MAD",
+                                "${uiState.budgets.sumOf { it.amount }} $currency",
                                 style = MaterialTheme.typography.headlineLarge,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
@@ -178,6 +181,8 @@ fun BudgetCard(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val currency = remember(context) { bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -274,12 +279,12 @@ fun BudgetCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "${spent.toInt()} MAD dépensé",
+                    "${spent.toInt()} $currency dépensé",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    "${budget.amount.toInt()} MAD",
+                    "${budget.amount.toInt()} $currency",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -300,6 +305,9 @@ fun AddBudgetDialog(
     var selectedCategoryId by remember { mutableStateOf(budget?.categoryId) }
     var selectedPeriod by remember { mutableStateOf(budget?.period ?: BudgetPeriod.MONTHLY) }
     var expandedPeriod by remember { mutableStateOf(false) }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val currency = remember(context) { bilal.com.fintrack.data.remote.TokenManager(context).getCurrency() }
     
     // Initialize with first category if none selected
     LaunchedEffect(categories) {
@@ -342,7 +350,7 @@ fun AddBudgetDialog(
                         fontWeight = FontWeight.Bold
                     ),
                     trailingIcon = {
-                        Text("MAD", style = MaterialTheme.typography.titleLarge, color = Color.Gray)
+                        Text(currency, style = MaterialTheme.typography.titleLarge, color = Color.Gray)
                     },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
